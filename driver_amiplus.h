@@ -17,6 +17,9 @@ struct Amiplus: Driver
     std::map<std::string, double> ret_val{};
 
     add_to_map(ret_val, "total_energy_consumption_kwh", this->get_total_energy_consumption_kwh(telegram));
+    add_to_map(ret_val, "total_energy_consumption_tarrif_1_kwh", this->get_total_energy_consumption_by_tarrif_kwh(1, telegram));
+    add_to_map(ret_val, "total_energy_consumption_tarrif_2_kwh", this->get_total_energy_consumption_by_tarrif_kwh(2, telegram));
+    add_to_map(ret_val, "total_energy_consumption_tarrif_3_kwh", this->get_total_energy_consumption_by_tarrif_kwh(3, telegram));
     add_to_map(ret_val, "current_power_consumption_kw", this->get_current_power_consumption_kw(telegram));
     add_to_map(ret_val, "total_energy_production_kwh", this->get_total_energy_production_kwh(telegram));
     add_to_map(ret_val, "current_power_production_kw", this->get_current_power_production_kw(telegram));
@@ -67,6 +70,25 @@ private:
         usage = bcd_2_int(telegram, i, 6);
         ret_val = usage / 1000.0;
         ESP_LOGVV(TAG, "Found register '0E03' with '%d'->'%f'", usage, ret_val.value());
+        break;
+      }
+      i++;
+    }
+    return ret_val;
+  };
+
+  esphome::optional<double> get_total_energy_consumption_by_tarrif_kwh(uint32_t tarrif, std::vector<unsigned char> &telegram) {
+    esphome::optional<double> ret_val{};
+    uint32_t usage = 0;
+    size_t i = 11;
+    uint32_t total_tarrif_register = 0x8E0000 | (tarrif << 12) | 0x000003;
+    while (i < telegram.size()) {
+      uint32_t c = (((uint32_t)telegram[i+0] << 16) | ((uint32_t)telegram[i+1] << 8) | ((uint32_t)telegram[i+2]));
+      if (c == total_tarrif_register) {
+        i += 2;
+        usage = bcd_2_int(telegram, i, 6);
+        ret_val = usage / 100000.0;
+        ESP_LOGVV(TAG, "Found register '%06x' with '%d'->'%f'", total_tarrif_register, usage, ret_val.value());
         break;
       }
       i++;
